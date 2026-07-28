@@ -4,7 +4,7 @@ pipeline {
 
     // FIX 2: Centralized all hardcoded values into a global environment block for configuration management.
     environment {
-        AWS_ACCOUNT_ID = '242201296943'
+        AWS_ACCOUNT_ID = '457518777735'
         AWS_REGION     = 'us-east-1'
         REGISTRY_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         APP_NAME       = 'adservice'

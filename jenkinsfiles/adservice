@@ -82,7 +82,7 @@ pipeline {
                                 
                                 git add ${YAML_FILE}
                                 git commit -m "Automated CI Deployment: Update ${APP_NAME} image version to ${IMAGE_TAG} [skip ci]"
-                                git push https://${git_token}@://github.com{GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:master
+                                git push https://${git_token}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:master
                             """
                         }
                     }

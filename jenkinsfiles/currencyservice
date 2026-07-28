@@ -9,8 +9,8 @@ pipeline {
         REGISTRY_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         APP_NAME       = 'currencyservice'
         GIT_REPO_NAME  = 'Microservices-E-Commerce-eks-project'
-        GIT_USER_NAME  = 'arumullayaswanth'
-        GIT_EMAIL      = 'Yaswanth.arumulla@gmail.com'
+        GIT_USER_NAME  = 'Praveen230389'
+        GIT_EMAIL      = 'Praveenkumar230389@gmail.com'
         YAML_FILE      = 'currencyservice.yaml'
         
         // FIX 3: Dynamic Tagging standard using Jenkins build number for tracking visibility.

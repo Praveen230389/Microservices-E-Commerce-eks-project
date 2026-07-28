@@ -1,0 +1,92 @@
+#!/bin/bash
+
+echo "========================================="
+echo "     DevSecOps Installation Checker"
+echo "========================================="
+
+check_cmd() {
+    NAME=$1
+    CMD=$2
+
+    if command -v $CMD >/dev/null 2>&1; then
+        echo "✅ $NAME Installed"
+        $CMD --version 2>/dev/null | head -1
+    else
+        echo "❌ $NAME NOT Installed"
+    fi
+
+    echo "-----------------------------------------"
+}
+
+check_service() {
+    NAME=$1
+
+    if systemctl list-unit-files | grep -q "^$NAME"; then
+        STATUS=$(systemctl is-active $NAME 2>/dev/null)
+
+        if [ "$STATUS" = "active" ]; then
+            echo "✅ $NAME Service Running"
+        else
+            echo "⚠️  $NAME Installed but NOT Running"
+        fi
+    else
+        echo "❌ $NAME Service NOT Installed"
+    fi
+
+    echo "-----------------------------------------"
+}
+
+check_cmd "Git" git
+check_cmd "Java" java
+check_cmd "NodeJS" node
+check_cmd "NPM" npm
+check_cmd "Jenkins CLI" jenkins
+check_cmd "Terraform" terraform
+check_cmd "Maven" mvn
+check_cmd "Ansible" ansible
+check_cmd "kubectl" kubectl
+check_cmd "eksctl" eksctl
+check_cmd "Helm" helm
+check_cmd "Docker" docker
+check_cmd "Docker Compose" docker-compose
+check_cmd "Trivy" trivy
+check_cmd "Vault" vault
+check_cmd "AWS CLI" aws
+check_cmd "MySQL Client" mysql
+check_cmd "PostgreSQL Client" psql
+
+echo
+echo "========= SERVICES ========="
+
+check_service docker.service
+check_service jenkins.service
+check_service mariadb.service
+check_service postgresql-15.service
+
+echo
+echo "========= JAVA ========="
+
+java -version
+
+echo
+echo "========= DOCKER ========="
+
+docker --version
+
+echo
+echo "========= KUBERNETES ========="
+
+kubectl version --client 2>/dev/null
+
+echo
+echo "========= AWS ========="
+
+aws --version
+
+echo
+echo "========= JENKINS ========="
+
+systemctl status jenkins --no-pager | head -10
+
+echo
+echo "========= FINISHED ========="

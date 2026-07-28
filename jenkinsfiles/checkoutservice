@@ -27,7 +27,7 @@ pipeline {
         stage('Checkout from Git') {
             steps {
                 // Maintained master branch checkouts as per Yashwant's repo structure
-                git branch: 'master', url: "https://github.com{GIT_USER_NAME}/${GIT_REPO_NAME}.git"
+                git branch: 'master', url: "https://github.com/Praveen230389/Microservices-E-Commerce-eks-project.git"
             }
         }
 

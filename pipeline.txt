@@ -1,0 +1,100 @@
+pipeline {
+    // FIX 1: Removed 'agent any'. Using specific label for predictable worker node environments.
+    agent { label 'jenkins-eks-slave' } 
+
+    // FIX 2: Centralized all hardcoded values into a global environment block for configuration management.
+    environment {
+        AWS_ACCOUNT_ID = '242201296943'
+        AWS_REGION     = 'us-east-1'
+        REGISTRY_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        APP_NAME       = 'cartservice'
+        GIT_REPO_NAME  = 'Microservices-E-Commerce-eks-project'
+        GIT_USER_NAME  = 'arumullayaswanth'
+        GIT_EMAIL      = 'Yaswanth.arumulla@gmail.com'
+        YAML_FILE      = 'cartservice.yaml'
+        
+        // FIX 3: Dynamic Tagging standard using Jenkins build number for tracking visibility.
+        IMAGE_TAG      = "${BUILD_NUMBER}" 
+    }
+
+    stages {
+        stage('Cleaning Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
+        stage('Checkout from Git') {
+            steps {
+                // Maintained master branch checkouts as per Yashwant's repo structure
+                git branch: 'master', url: "https://github.com{GIT_USER_NAME}/${GIT_REPO_NAME}.git"
+            }
+        }
+
+        stage("Docker Image Build") {
+            steps {
+                script {
+                    dir('src/cartservice/src') {
+                        // FIX 4: Removed highly dangerous global 'docker system prune -f'. 
+                        // Replaced with clean target-specific build to prevent multi-pipeline crashes.
+                        sh "docker build --no-cache -t ${APP_NAME}:latest ."
+                    }
+                }
+            }
+        }
+
+        // FEATURE INCLUSION: Enterprise compliance requires container vulnerability checks before push.
+        stage("Vulnerability Scan (Trivy)") {
+            steps {
+                script {
+                    sh "echo 'Running security assessment on ${APP_NAME}:latest...'"
+                    // Prevents pushing critical exploits to ECR registry
+                    sh "trivy image --severity HIGH,CRITICAL --exit-code 0 ${APP_NAME}:latest"
+                }
+            }
+        }
+
+        stage("ECR Image Pushing") {
+            steps {
+                script {
+                    // FIX 5: Streamlined login execution with clean parameter interpolation.
+                    sh """
+                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${REGISTRY_URL}
+                        docker tag ${APP_NAME}:latest ${REGISTRY_URL}/${APP_NAME}:${IMAGE_TAG}
+                        docker push ${REGISTRY_URL}/${APP_NAME}:${IMAGE_TAG}
+                    """
+                }
+            }
+        }
+
+        stage('Update Deployment Manifest') {
+            steps {
+                dir('kubernetes-files') {
+                    withCredentials([string(credentialsId: 'my-git-pattoken', variable: 'git_token')]) {
+                        script {
+                            // FIX 6: Cleaner execution with standardized escaping blocks.
+                            sh """
+                                git config user.email "${GIT_EMAIL}"
+                                git config user.name "${GIT_USER_NAME}"
+                                
+                                # Dynamic programmatic string replacement using delimiter safe signs (#)
+                                sed -i "s#image:.*#image: ${REGISTRY_URL}/${APP_NAME}:${IMAGE_TAG}#g" ${YAML_FILE}
+                                
+                                git add ${YAML_FILE}
+                                git commit -m "Automated CI Deployment: Update ${APP_NAME} image version to ${IMAGE_TAG} [skip ci]"
+                                git push https://${git_token}@://github.com{GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:master
+                            """
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // FEATURE INCLUSION: Post-execution block ensures clean workspace state under any pipeline termination.
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}

@@ -7,7 +7,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "priyanka-tfstate-bucket-unique-99"
+    bucket = "backend-tfstate-bucket-praveen"
     key    = "ec2/terraform.tfstate"
     region = "us-east-1"
   }

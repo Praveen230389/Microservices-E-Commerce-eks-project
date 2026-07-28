@@ -39,10 +39,7 @@ sudo yum install -y ansible
 ansible --version
 
 # Install kubectl
-curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/kubectl
-chmod +x ./kubectl
-sudo mv ./kubectl /usr/local/bin/
-kubectl version --client
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 
 # Install eksctl
 curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
@@ -63,7 +60,6 @@ sudo usermod -aG docker ec2-user
 sudo usermod -aG docker jenkins
 sudo systemctl enable docker
 sudo systemctl start docker
-sudo chmod 777 /var/run/docker.sock
 sudo docker --version  
 
 # Install Docker Compose
@@ -72,7 +68,17 @@ sudo chmod +x /usr/local/bin/docker-compose
 sudo docker-compose --version
 
 # Install Trivy
-sudo rpm -ivh https://github.com/aquasecurity/trivy/releases/download/v0.48.3/trivy_0.48.3_Linux-64bit.rpm
+sudo tee /etc/yum.repos.d/trivy.repo <<EOF
+[trivy]
+name=Trivy repository
+baseurl=https://aquasecurity.github.io/trivy-repo/rpm/releases/\$basearch/
+gpgcheck=1
+enabled=1
+gpgkey=https://aquasecurity.github.io/trivy-repo/rpm/public.key
+EOF
+
+sudo dnf install -y trivy
+
 trivy --version
 
 # Install vault
@@ -90,11 +96,15 @@ mysql --version
 
 
 # Install PostgreSQL 
-sudo yum install -y postgresql15 postgresql15-server
-sudo /usr/pgsql-15/bin/postgresql-15-setup initdb
-sudo systemctl enable postgresql-15
-sudo systemctl start postgresql-15
-psql --version
+sudo dnf install -y postgresql15-server
+
+sudo /usr/bin/postgresql-setup --initdb
+
+sudo systemctl enable postgresql
+
+sudo systemctl start postgresql
+
+systemctl status postgresql
 
 # Install AWS CLI v2
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"

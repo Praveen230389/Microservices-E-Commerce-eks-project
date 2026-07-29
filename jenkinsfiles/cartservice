@@ -34,7 +34,7 @@ pipeline {
         stage("Docker Image Build") {
             steps {
                 script {
-                    dir('src/cartservice') {
+                    dir('src/cartservice/src') {
                         // FIX 4: Removed highly dangerous global 'docker system prune -f'. 
                         // Replaced with clean target-specific build to prevent multi-pipeline crashes.
                         sh "docker build --no-cache -t ${APP_NAME}:latest ."

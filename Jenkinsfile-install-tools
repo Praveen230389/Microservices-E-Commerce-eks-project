@@ -1,0 +1,469 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_DEFAULT_REGION = 'ap-south-1'
+    }
+
+    parameters {
+        choice(
+            name: 'ACTION',
+            choices: ['apply', 'destroy'],
+            description: '🔧 Select the Terraform action to perform'
+        )
+    }
+
+    stages {
+        stage('Checkout from Git') {
+            steps {
+                git branch: 'master', url: "https://github.com/Praveen230389/Microservices-E-Commerce-eks-project.git"
+            }
+        }
+
+        stage ('git version check') {
+            steps {
+                sh '''
+                   sudo yum update -y
+                   git --version
+                   '''
+            }
+        }
+
+        stage ('installing essential tools') {
+            steps {
+                sh 'sudo yum install -y git wget unzip curl yum-utils'
+            }
+        }
+
+        stage ('installing java') {
+            steps {
+                sh '''
+                    sudo dnf install -y java-21-amazon-corretto
+                    java -version
+                    '''
+            }
+        }
+
+        stage ('installing npm tools') {
+            steps {
+                sh '''
+                   sudo dnf install nodejs -y
+                   node -v
+                   npm -v
+                   '''
+            }
+        }
+
+        stage ('installing maven') {
+            steps {
+                sh '''
+                    sudo yum install -y maven
+                    mvn -v
+                    '''
+            }
+        }
+
+        stage ('installing ansible') {
+            steps {
+                sh '''
+                    sudo yum install -y ansible
+                    ansible --version
+                    '''
+            }
+        }
+
+        stage ('installing kubectl') {
+            steps {
+                sh 'curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"'
+            }
+        }
+
+        stage ('installing eksctl') {
+            steps {
+                sh '''
+                    curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+                    sudo mv /tmp/eksctl /usr/local/bin/
+                    eksctl version
+                    '''
+            }
+        }
+
+        stage ('installing helm') {
+            steps {
+                sh '''
+                    wget https://get.helm.sh/helm-v3.6.0-linux-amd64.tar.gz
+                    tar -zxvf helm-v3.6.0-linux-amd64.tar.gz
+                    sudo mv linux-amd64/helm /usr/local/bin/helm
+                    chmod +x /usr/local/bin/helm
+                    rm -rf helm-v3.6.0-linux-amd64.tar.gz linux-amd64
+                    helm version
+                    '''
+            }
+        }
+
+        stage ('installing docker') {
+            steps {
+                sh '''
+                    sudo yum install -y docker
+                    sudo usermod -aG docker ec2-user
+                    sudo usermod -aG docker jenkins
+                    sudo systemctl enable docker
+                    sudo systemctl start docker
+                    sudo docker --version  
+                    '''
+            }
+        }
+
+        stage ('installing docker compose') {
+            steps {
+                sh '''
+                    sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+                    sudo chmod +x /usr/local/bin/docker-compose
+                    sudo docker-compose --version
+                    '''
+            }
+        }
+
+        stage ('installing trivy') {
+            steps {
+                sh '''
+                    sudo tee /etc/yum.repos.d/trivy.repo <<EOF
+                    [trivy]
+                    name=Trivy repository
+                    baseurl=https://aquasecurity.github.io/trivy-repo/rpm/releases/\$basearch/
+                    gpgcheck=1
+                    enabled=1
+                    gpgkey=https://aquasecurity.github.io/trivy-repo/rpm/public.key
+                    EOF
+
+                    sudo dnf install -y trivy
+
+                    trivy --version
+                    '''
+            }
+        }
+
+        stage ('installing vault') {
+            steps {
+                sh 'sudo yum install -y vault'
+            }
+        }
+
+        stage ('installing maria db') {
+            steps {
+                sh '''
+                    sudo yum install -y mariadb105-server
+                    sudo systemctl start mariadb
+                    sudo systemctl enable mariadb
+                    mysql --version 
+                    #systemctl status mariadb
+                    '''
+            }
+        }
+
+        stage ('installing postgresql') {
+            steps {
+                sh '''
+                    sudo dnf install -y postgresql15-server
+
+                    sudo /usr/bin/postgresql-setup --initdb
+
+                    sudo systemctl enable postgresql
+
+                    sudo systemctl start postgresql
+
+                    systemctl status postgresql
+                    '''
+            }
+        }
+
+        stage ('installing aws cli v2') {
+            steps {
+                sh '''
+                    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                    unzip awscliv2.zip
+                    sudo ./aws/install
+                    rm -rf awscliv2.zip aws
+
+                    echo "✅ Initialization script completed successfully."
+                    '''
+            }
+        }
+
+        stage ('installing ArgoCD') {
+            steps {
+                sh '''
+                    kubectl create namespace argocd
+                    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+                    kubectl get pods -n argocd
+                    '''
+            }
+        }
+
+        stage ('installing Prometheus and Grafana using Helm') {
+            steps {
+                sh '''
+                    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+                    helm repo update
+                    kubectl create namespace prometheus
+                    helm install prometheus prometheus-community/kube-prometheus-stack -n prometheus
+                    kubectl get pods -n prometheus
+                    '''
+            }
+        }
+
+        stage ('installing ArgoCD Namespaces') {
+            steps {
+                sh '''
+                    kubectl create namespace argocd
+                    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+                    '''
+            }
+        }
+
+        stage ('installing grafana prometheus') {
+            steps {
+                sh '''
+                    helm repo add stable https://charts.helm.sh/stable
+                    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+                    kubectl create namespace Prometheus
+                    helm install stable prometheus-community/kube-prometheus-stack -n prometheus
+                    '''
+            }
+        }
+
+        stage ('installing EBS CSI Driver for Kubernetes volumes') {
+            steps {
+                sh '''
+                    helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+                    helm repo update
+
+                    '''
+            }
+        }
+
+        stage ('installing maven') {
+            steps {
+                sh 'helm upgrade --install aws-ebs-csi-driver --namespace kube-system aws-ebs-csi-driver/aws-ebs-csi-driver'
+            }
+        }
+
+        stage('Terraform init') {
+            steps {
+                dir('eks-terraform') {
+                    sh 'terraform init --reconfigure'
+                }
+            }
+        }
+
+        stage('Terraform apply') {
+            when {
+                expression { params.ACTION == 'apply' }
+            }
+            steps {
+                dir('eks-terraform') {
+                    sh 'terraform apply -auto-approve'
+                }
+            }
+        }
+
+        stage('Terraform destroy') {
+            when {
+                expression { params.ACTION == 'destroy' }
+            }
+            steps {
+                dir('eks-terraform') {
+                    sh 'terraform destroy -auto-approve'
+                }
+            }
+        }
+
+        stage('Terraform init') {
+            steps {
+                dir('s3-bucket') {
+                    sh 'terraform init --reconfigure'
+                }
+            }
+        }
+
+        stage('Terraform apply') {
+            when {
+                expression { params.ACTION == 'apply' }
+            }
+            steps {
+                dir('s3-bucket') {
+                    sh 'terraform apply -auto-approve'
+                }
+            }
+        }
+
+        stage('Terraform destroy') {
+            when {
+                expression { params.ACTION == 'destroy' }
+            }
+            steps {
+                dir('s3-bucket') {
+                    sh 'terraform destroy -auto-approve'
+                }
+            }
+        }
+
+        stage('Terraform init') {
+            steps {
+                dir('ecr-terraform') {
+                    sh 'terraform init --reconfigure'
+                }
+            }
+        }
+
+        stage('Terraform apply') {
+            when {
+                expression { params.ACTION == 'apply' }
+            }
+            steps {
+                dir('ecr-terraform') {
+                    sh 'terraform apply -auto-approve'
+                }
+            }
+        }
+
+        stage('Terraform destroy') {
+            when {
+                expression { params.ACTION == 'destroy' }
+            }
+            steps {
+                dir('ecr-terraform') {
+                    sh 'terraform destroy -auto-approve'
+                }
+            }
+        }
+
+        stage ('verifying installing tools') {
+            steps {
+                sh '''
+                    git --version
+                    java -version
+                    node -v
+                    npm -v
+                    mvn -v
+                    ansible --version
+                    kubectl version --client
+                    eksctl version
+                    helm version
+                    docker --version
+                    docker-compose --version
+                    trivy --version
+                    vault --version
+                    mysql --version 
+                    systemctl status mariadb
+                    systemctl status postgresql
+                    aws --version
+                   '''
+
+            }
+        }
+
+        stage ('verify EKS cluster') {
+            steps {
+                sh '''aws eks --region us-east-1 update-kubeconfig --name project-eks
+                    kubectl get nodes
+                   ''' 
+            }
+        }
+
+        stage ('Create Namespace for ArgoCD') {
+            steps {
+                sh 'kubectl create namespace argocd'
+            }
+        }
+
+        stage ('Install ArgoCD in the Created Namespace') {
+            steps {
+                sh 'kubectl apply -n argocd \
+                      -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml'
+            }
+        }
+
+        stage ('verify EKS repositories') {
+            steps {
+                sh 'aws ecr describe-repositories --region us-east-1'
+            }
+        }
+
+        stage ('Ensure all pods are in Running state.') {
+            steps {
+                sh 'kubectl get pods -n argocd'
+            }
+        }
+
+        stage ('Validate the Cluster') {
+            steps {
+                sh 'kubectl get nodes'
+            }
+        }
+
+        stage ('List All ArgoCD Resources') {
+            steps {
+                sh 'kubectl get all -n argocd'
+            }
+        }
+
+        stage ('Create Namespace in EKS') {
+            steps {
+                sh '''
+                   kubectl create namespace dev
+                   kubectl get namespaces
+                   '''
+            }
+        }
+
+        stage ('Create a Namespace for Monitoring') {
+            steps {
+                sh 'kubectl create namespace monitoring'
+            }
+        }
+
+        stage ('Add Prometheus & Grafana Helm Chart Repo') {
+            steps {
+                sh '''
+                   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+                   helm repo update
+                   '''
+            }
+        }
+
+        stage ('Install the Kube Prometheus Stack') {
+            steps {
+                sh 'helm install kube-prom-stack prometheus-community/kube-prometheus-stack \
+                      --namespace monitoring'
+            }
+        }
+
+        stage ('Check That Everything Is Running') {
+            steps {
+                sh 'kubectl get pods -n monitoring'
+            }
+        }
+
+        stage ('All External Outputs') {
+            steps {
+                sh '''
+                   kubectl get svc argocd-server -n argocd
+
+                   sleep 300
+
+                   kubectl get secret argocd-initial-admin-secret -n argocd \
+                     -o jsonpath="{.data.password}" | base64 -d && echo
+
+                   sleep 300
+
+                   kubectl get svc kube-prom-stack-grafana -n monitoring
+
+                   sleep 300
+
+                   kubectl get secret kube-prom-stack-grafana -n monitoring -o jsonpath="{.data.admin-password}" | base64 -d && echo
+                   '''
+            }
+        }
+    }
+}

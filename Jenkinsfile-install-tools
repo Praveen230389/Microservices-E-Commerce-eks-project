@@ -169,17 +169,16 @@ pipeline {
         sh '''
             sudo dnf install -y postgresql15-server
 
-            if [ ! -f /var/lib/pgsql/data/PG_VERSION ]; then
+            if [ -d /var/lib/pgsql/data/base ]; then
+                echo "PostgreSQL database already initialized. Skipping initdb."
+            else
                 echo "Initializing PostgreSQL..."
                 sudo /usr/bin/postgresql-setup --initdb
-            else
-                echo "PostgreSQL already initialized."
             fi
 
-            sudo systemctl enable postgresql-15
-            sudo systemctl start postgresql-15
-
-            sudo systemctl status postgresql-15 --no-pager
+            sudo systemctl enable postgresql
+            sudo systemctl start postgresql
+            sudo systemctl status postgresql --no-pager
         '''
     }
 }

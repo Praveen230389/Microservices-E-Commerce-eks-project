@@ -29,18 +29,11 @@ pipeline {
             }
         }
 
-        stage ('installing essential tools') {
-            steps {
-                sh 'sudo yum install -y git wget unzip curl yum-utils'
-            }
-        }
-
-        stage ('installing java') {
-            steps {
-                sh '''
-                    sudo dnf install -y java-21-amazon-corretto
-                    java -version
-                    '''
+        stage('Installing Essential Tools') {
+           steps {
+              sh '''
+                 sudo yum install -y git wget unzip yum-utils
+                 '''
             }
         }
 

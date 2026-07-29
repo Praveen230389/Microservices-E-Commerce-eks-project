@@ -188,18 +188,21 @@ pipeline {
     }
 }
 
-        stage ('installing aws cli v2') {
-            steps {
-                sh '''
-                    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                    unzip awscliv2.zip
-                    sudo ./aws/install
-                    rm -rf awscliv2.zip aws
+        stage('installing aws cli v2') {
+    steps {
+        sh '''
+            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+            unzip -oq awscliv2.zip
 
-                    echo "✅ Initialization script completed successfully."
-                    '''
-            }
-        }
+            sudo ./aws/install --update
+
+            rm -rf awscliv2.zip aws
+
+            aws --version
+            echo "✅ AWS CLI installation completed."
+        '''
+    }
+}
 
         stage ('installing ArgoCD') {
             steps {

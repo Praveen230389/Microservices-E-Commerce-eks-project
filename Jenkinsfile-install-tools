@@ -242,7 +242,7 @@ pipeline {
             }
         }
 
-        stage ('installing maven') {
+        stage ('Help upgrade') {
             steps {
                 sh 'helm upgrade --install aws-ebs-csi-driver --namespace kube-system aws-ebs-csi-driver/aws-ebs-csi-driver'
             }

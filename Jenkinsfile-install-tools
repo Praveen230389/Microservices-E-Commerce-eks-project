@@ -248,7 +248,7 @@ pipeline {
             }
         }
 
-        stage('Terraform init') {
+        stage('Terraform init EKS') {
             steps {
                 dir('eks-terraform') {
                     sh 'terraform init --reconfigure'
@@ -256,7 +256,7 @@ pipeline {
             }
         }
 
-        stage('Terraform apply') {
+        stage('Terraform apply EKS') {
             when {
                 expression { params.ACTION == 'apply' }
             }
@@ -267,7 +267,7 @@ pipeline {
             }
         }
 
-        stage('Terraform destroy') {
+        stage('Terraform destroy EKS') {
             when {
                 expression { params.ACTION == 'destroy' }
             }
@@ -278,7 +278,7 @@ pipeline {
             }
         }
 
-        stage('Terraform init') {
+        stage('Terraform init S3') {
             steps {
                 dir('s3-bucket') {
                     sh 'terraform init --reconfigure'
@@ -286,7 +286,7 @@ pipeline {
             }
         }
 
-        stage('Terraform apply') {
+        stage('Terraform apply S3') {
             when {
                 expression { params.ACTION == 'apply' }
             }
@@ -297,7 +297,7 @@ pipeline {
             }
         }
 
-        stage('Terraform destroy') {
+        stage('Terraform destroy S3') {
             when {
                 expression { params.ACTION == 'destroy' }
             }
@@ -308,7 +308,7 @@ pipeline {
             }
         }
 
-        stage('Terraform init') {
+        stage('Terraform init ECR') {
             steps {
                 dir('ecr-terraform') {
                     sh 'terraform init --reconfigure'
@@ -316,7 +316,7 @@ pipeline {
             }
         }
 
-        stage('Terraform apply') {
+        stage('Terraform apply ECR') {
             when {
                 expression { params.ACTION == 'apply' }
             }
@@ -327,7 +327,7 @@ pipeline {
             }
         }
 
-        stage('Terraform destroy') {
+        stage('Terraform destroy ECR') {
             when {
                 expression { params.ACTION == 'destroy' }
             }

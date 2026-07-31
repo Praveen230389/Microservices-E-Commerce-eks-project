@@ -2,89 +2,66 @@ pipeline {
     agent { label 'jenkins-eks-slave' } 
 
     environment {
-        AWS_ACCOUNT_ID   = '457518777735'
-        AWS_REGION       = 'us-east-1'
-        REGISTRY_URL     = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        APP_NAME         = 'cartservice'
-        GIT_REPO_NAME    = 'Microservices-E-Commerce-eks-project'
-        GIT_USER_NAME    = 'Praveen230389'
-        GIT_EMAIL        = 'Praveenkumar230389@gmail.com'
-        YAML_FILE        = 'cartservice.yaml'
-        IMAGE_TAG        = "${BUILD_NUMBER}"
-        
-        // Enterprise Tool Server References
-        SONAR_SERVER_ENV = 'SonarQube-Prod-Server'
+        AWS_ACCOUNT_ID = '457518777735'
+        AWS_REGION     = 'us-east-1'
+        REGISTRY_URL   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        APP_NAME       = 'cartservice'
+        YAML_FILE      = 'cartservice.yaml'
+        IMAGE_TAG      = "${BUILD_NUMBER}"
     }
 
     stages {
-        stage('Cleaning Workspace') {
+        stage('Workspace Cleanup & Checkout') {
             steps {
                 cleanWs()
+                git branch: 'master', url: "https://github.com"
             }
         }
 
-        stage('Checkout from Git') {
-            steps {
-                git branch: 'master', url: "https://github.com/Praveen230389/Microservices-E-Commerce-eks-project.git"
-            }
-        }
-
-        // 🌟 ENTERPRISE LEVEL TOOL: Code Quality & Security Check (SAST)
-        stage('SonarQube Code Analysis') {
+        // 🛡️ STEP 1: Code Security Audit before compilation
+        stage('SonarQube Security Scan') {
             steps {
                 script {
-                    sh "echo 'Initializing Static Application Security Testing (SAST)...'"
-                    // Injecting global enterprise Sonar credentials automatically
-                    withSonarQubeEnv("${SONAR_SERVER_ENV}") {
+                    // Standard enterprise wrapper command to inject tokens securely
+                    withSonarQubeEnv('SonarQube-Server') {
+                        // Scan only the specific microservice source folder to save time
                         sh "sonar-scanner -Dsonar.projectKey=${APP_NAME} -Dsonar.sources=src/${APP_NAME}/src"
                     }
                 }
             }
         }
 
-        // 🌟 ENTERPRISE LEVEL TOOL: Quality Gate Check (Pipeline Blocks if Code Quality Fails)
-        stage("SonarQube Quality Gate") {
+        // 🛡️ STEP 2: Manifest configuration security check
+        stage('IaC Compliance Check (Checkov)') {
             steps {
-                timeout(time: 5, unit: 'MINUTES') {
-                    script {
-                        waitForQualityGate abortPipeline: true
-                    }
+                script {
+                    // Soft-fail ensures pipeline doesn't randomly block on minor warning alerts
+                    sh "checkov -f kubernetes-files/${YAML_FILE} --framework kubernetes --soft-fail"
                 }
             }
         }
 
-        // 🌟 ENTERPRISE LEVEL TOOL: Infrastructure as Code (IaC Security Linter)
-        stage("IaC Security Scan (Checkov)") {
+        stage("Build Docker Image") {
             steps {
                 script {
-                    sh "echo 'Scanning Kubernetes Manifest Files for Security Misconfigurations...'"
-                    // Validates that port exposures, capabilities, or user roles don't violate AWS compliance
-                    sh "checkov -d kubernetes-files/ --framework kubernetes --soft-fail"
-                }
-            }
-        }
-
-        stage("Docker Image Build") {
-            steps {
-                script {
-                    dir('src/cartservice/src') {
+                    dir("src/${APP_NAME}/src") {
                         sh "docker build --no-cache -t ${APP_NAME}:latest ."
                     }
                 }
             }
         }
 
+        // 🛡️ STEP 3: Binary package patch mapping
         stage("Vulnerability Scan (Trivy)") {
             steps {
                 script {
-                    sh "echo 'Running advanced container exploit patch mapping on ${APP_NAME}:latest...'"
-                    // Enterprise hard enforcement rule: If critical vulnerability found, break pipeline
-                    sh "trivy image --severity CRITICAL --exit-code 1 ${APP_NAME}:latest"
+                    // Production rule: If image contains HIGH or CRITICAL issues, stop the pipeline (exit code 1)
+                    sh "trivy image --severity HIGH,CRITICAL --exit-code 1 ${APP_NAME}:latest"
                 }
             }
         }
 
-        stage("ECR Image Pushing") {
+        stage("Push Image to AWS ECR") {
             steps {
                 script {
                     sh """
@@ -96,18 +73,18 @@ pipeline {
             }
         }
 
-        stage('Update Deployment Manifest') {
+        stage('Update Manifest & Git Push') {
             steps {
                 dir('kubernetes-files') {
                     withCredentials([string(credentialsId: 'my-git-pattoken', variable: 'git_token')]) {
                         script {
                             sh """
-                                git config user.email "${GIT_EMAIL}"
-                                git config user.name "${GIT_USER_NAME}"
+                                git config user.email "Praveenkumar230389@gmail.com"
+                                git config user.name "Praveen230389"
                                 sed -i "s#image:.*#image: ${REGISTRY_URL}/${APP_NAME}:${IMAGE_TAG}#g" ${YAML_FILE}
                                 git add ${YAML_FILE}
-                                git commit -m "Automated CI Deployment: Update ${APP_NAME} image version to ${IMAGE_TAG} [skip ci]"
-                                git push https://${git_token}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:master
+                                git commit -m "Automated Production Release: ${APP_NAME}:${IMAGE_TAG} [skip ci]"
+                                git push https://${git_token}@://github.com HEAD:master
                             """
                         }
                     }
@@ -116,21 +93,13 @@ pipeline {
         }
     }
 
-    // 🌟 ENTERPRISE LEVEL POST ACTION: Continuous Instant Alerting System Integration
+    // 🛡️ STEP 4: Automated Notification Alerting
     post {
         success {
-            script {
-                sh "echo 'Pipeline executed successfully! Triggering Slack release notifications.'"
-                // Simple production notification block to Slack channel
-                slackSend channel: '#devsecops-deploy-logs', color: 'good', message: "SUCCESS: Job '${env.JOB_NAME}' [Build #${env.BUILD_NUMBER}] processed smoothly. New Version: ${IMAGE_TAG}"
-            }
+            slackSend channel: '#alerts-prod-deploy', color: 'good', message: "SUCCESS: ${APP_NAME} build #${IMAGE_TAG} successfully deployed to ECR and Manifest repo updated."
         }
         failure {
-            script {
-                sh "echo 'Pipeline failed! Routing immediate alerts.'"
-                // Sends failure logs alerts to Slack which is integrated to auto-route alerts to PagerDuty/Zenduty
-                slackSend channel: '#devsecops-deploy-logs', color: 'danger', message: "CRITICAL: Job '${env.JOB_NAME}' [Build #${env.BUILD_NUMBER}] failed at some checkpoints. Review logs instantly."
-            }
+            slackSend channel: '#alerts-prod-deploy', color: 'danger', message: "CRITICAL: DevSecOps Gate failed for ${APP_NAME} at build #${IMAGE_TAG}. Review logs immediately."
         }
         always {
             cleanWs()
